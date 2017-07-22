@@ -235,6 +235,10 @@ static sexp sexp_AnimationCreate(COMMON_ARGS, sexp arg0, sexp arg1, sexp arg2, s
     return sexp_make_unsigned_integer(ctx, animation);
 }
 
+static sexp sexp_PollEvent(COMMON_ARGS) {
+    
+}
+
 // TODO: pollevents
 // TODO: recordevents
 
@@ -301,6 +305,7 @@ void schemeEntry() {
     }
     strncpy(fullStartPath, resPath, resPathLen);
     strncpy(fullStartPath + resPathLen, subPath, subPathLen);
+    fullStartPath[resPathLen + subPathLen] = '\0';
     mainFile = sexp_c_string(ctx, fullStartPath, -1);
     free(fullStartPath);
     sexp_load(ctx, mainFile, NULL);
