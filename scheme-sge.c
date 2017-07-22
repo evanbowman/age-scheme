@@ -411,6 +411,10 @@ void sexp_SGE_LibraryExport(sexp ctx, sexp env) {
     FFI_EXPORTI("sge-event-text-entered", SGE_EventCode_TextEntered);
     FFI_EXPORTI("sge-event-key-pressed", SGE_EventCode_KeyPressed);
     FFI_EXPORTI("sge-event-key-released", SGE_EventCode_KeyReleased);
+    FFI_EXPORTI("sge-blend-add", SGE_BM_Add);
+    FFI_EXPORTI("sge-blend-multiply", SGE_BM_Multiply);
+    FFI_EXPORTI("sge-blend-alpha", SGE_BM_Alpha);
+    FFI_EXPORTI("sge-blend-none", SGE_BM_None);
 }
 
 void schemeEntry() {
