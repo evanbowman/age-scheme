@@ -61,7 +61,7 @@ static sexp sexp_EntityClone(COMMON_ARGS, sexp arg0) {
 static sexp sexp_EntityAddAttrib(COMMON_ARGS, sexp arg0, sexp arg1) {
     MUST_BE_EXACT(arg0);
     MUST_BE_EXACT(arg1);
-    TRY(SGE_EntityAddAttribute(sexp_uint_value(arg0), sexp_sint_value(arg1)));
+    TRY(SGE_EntityAddAttribute(sexp_uint_value(arg0), sexp_uint_value(arg1)));
     return arg0;
 }
 
@@ -153,7 +153,7 @@ static sexp sexp_EntityRemove(COMMON_ARGS, sexp arg0) {
 static sexp sexp_EntityRemoveAttrib(COMMON_ARGS, sexp arg0, sexp arg1) {
     MUST_BE_EXACT(arg0);
     MUST_BE_EXACT(arg1);
-    TRY(SGE_EntityAddAttribute(sexp_uint_value(arg0), sexp_sint_value(arg1)));
+    TRY(SGE_EntityRemoveAttribute(sexp_uint_value(arg0), sexp_uint_value(arg1)));
     return arg0;
 }
 
@@ -347,7 +347,7 @@ void sexp_SGE_LibraryExport(sexp ctx, sexp env) {
     FFI_EXPORTI("sge-key-lshift", SGE_KeyLShift);
     FFI_EXPORTI("sge-key-lalt", SGE_KeyLAlt);
     FFI_EXPORTI("sge-key-lsystem", SGE_KeyLSystem);
-    FFI_EXPORTI("sge-key-lctrl", SGE_KeyRControl);
+    FFI_EXPORTI("sge-key-rctrl", SGE_KeyRControl);
     FFI_EXPORTI("sge-key-rshift", SGE_KeyRShift);
     FFI_EXPORTI("sge-key-ralt", SGE_KeyRAlt);
     FFI_EXPORTI("sge-key-rsystem", SGE_KeyRSystem);
@@ -415,6 +415,8 @@ void sexp_SGE_LibraryExport(sexp ctx, sexp env) {
     FFI_EXPORTI("sge-blend-multiply", SGE_BM_Multiply);
     FFI_EXPORTI("sge-blend-alpha", SGE_BM_Alpha);
     FFI_EXPORTI("sge-blend-none", SGE_BM_None);
+    FFI_EXPORTI("sge-attrib-hidden", SGE_Attr_Hidden);
+    FFI_EXPORTI("sge-attrib-position-absolute", SGE_Attr_PositionAbsolute);
 }
 
 void schemeEntry() {
@@ -441,16 +443,14 @@ void schemeEntry() {
     result = sexp_load(ctx, mainFile, NULL);
     if (sexp_exceptionp(result)) {
         printf("\n[[ Exception ]]");
-        printf("\n  kind: ");
-        sexp_write(ctx, sexp_exception_kind(result), sexp_current_output_port(ctx));
-        printf("\n  message: ");
+        printf("\n     source: ");
+        sexp_write(ctx, sexp_exception_source(result), sexp_current_output_port(ctx));
+        printf("\n    message: ");
         sexp_write(ctx, sexp_exception_message(result), sexp_current_output_port(ctx));
         printf("\n  irritants: ");
         sexp_write(ctx, sexp_exception_irritants(result), sexp_current_output_port(ctx));
         printf("\n  procedure: ");
         sexp_write(ctx, sexp_exception_procedure(result), sexp_current_output_port(ctx));
-        printf("\n  source: ");
-        sexp_write(ctx, sexp_exception_source(result), sexp_current_output_port(ctx));
         printf("\n\n");
     }
  CLEANUP:
