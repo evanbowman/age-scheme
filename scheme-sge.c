@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <SGE.h>
+#include <SGE/SGE.h>
 #include <chibi/eval.h>
 
 #define TYPE_EXCEPTION(__TYPE_, __ARG_) \
@@ -34,7 +34,7 @@ static sexp sexp_SetRefreshColor(COMMON_ARGS, sexp arg0) {
         sexp_uint_value(sexp_vector_ref(arg0, SEXP_TWO)),
         sexp_uint_value(sexp_vector_ref(arg0, SEXP_THREE))
     };
-    SGE_SetRefreshColor(color);
+    SGE_SetRefreshColor(&color);
     return SEXP_NULL;
 }
 
@@ -82,23 +82,25 @@ static sexp sexp_EntitySetKeyframe(COMMON_ARGS, sexp arg0, sexp arg1) {
 static sexp sexp_EntitySetPosition(COMMON_ARGS, sexp arg0, sexp arg1) {
     MUST_BE_EXACT(arg0);
     MUST_BE_PAIR(arg1);
-    SGE_Vec2 position = {
-        sexp_flonum_value(sexp_car(arg1)),
-        sexp_flonum_value(sexp_cdr(arg1))
-    };
+    sexp first = sexp_car(arg1);
+    sexp second = sexp_cdr(arg1);
+    MUST_BE_FLOAT(first);
+    MUST_BE_FLOAT(second);
+    SGE_Vec2 position = { sexp_flonum_value(first), sexp_flonum_value(second) };
     const SGE_UUID entity = sexp_uint_value(arg0);
-    TRY(SGE_EntitySetPosition(entity, position));
+    TRY(SGE_EntitySetPosition(entity, &position));
     return arg0;
 }
 
 static sexp sexp_EntitySetScale(COMMON_ARGS, sexp arg0, sexp arg1) {
     MUST_BE_EXACT(arg0);
     MUST_BE_PAIR(arg1);
-    SGE_Vec2 scale = {
-        sexp_flonum_value(sexp_car(arg1)),
-        sexp_flonum_value(sexp_cdr(arg1))
-    };
-    TRY(SGE_EntitySetScale(sexp_uint_value(arg0), scale));
+    sexp first = sexp_car(arg1);
+    sexp second = sexp_cdr(arg1);
+    MUST_BE_FLOAT(first);
+    MUST_BE_FLOAT(second);
+    SGE_Vec2 scale = { sexp_flonum_value(first), sexp_flonum_value(second) };
+    TRY(SGE_EntitySetScale(sexp_uint_value(arg0), &scale));
     return arg0;
 }
 
@@ -124,7 +126,7 @@ static sexp sexp_EntitySetColor(COMMON_ARGS, sexp arg0, sexp arg1) {
         sexp_uint_value(sexp_vector_ref(arg1, SEXP_TWO)),
         sexp_uint_value(sexp_vector_ref(arg1, SEXP_THREE))
     };
-    TRY(SGE_EntitySetColor(sexp_uint_value(arg0), color));
+    TRY(SGE_EntitySetColor(sexp_uint_value(arg0), &color));
     return arg0;
 }
 
@@ -165,11 +167,12 @@ static sexp sexp_CameraSetTarget(COMMON_ARGS, sexp arg0) {
 
 static sexp sexp_CameraSetCenter(COMMON_ARGS, sexp arg0) {
     MUST_BE_PAIR(arg0);
-    SGE_Vec2 position = {
-        sexp_flonum_value(sexp_car(arg0)),
-        sexp_flonum_value(sexp_cdr(arg0))
-    };
-    SGE_CameraSetCenter(position);
+    sexp first = sexp_car(arg0);
+    sexp second = sexp_cdr(arg0);
+    MUST_BE_FLOAT(first);
+    MUST_BE_FLOAT(second);
+    SGE_Vec2 position = { sexp_flonum_value(first), sexp_flonum_value(second) };
+    SGE_CameraSetCenter(&position);
     return SEXP_NULL;
 }
 
@@ -257,6 +260,10 @@ static sexp sexp_PollEvent(COMMON_ARGS) {
                             sexp_make_integer(ctx, holder.event.key.keyCode));
             return result;
         }
+
+        case SGE_EventCode_Collision: {
+            exit(1);
+        };
         }
     }
     return SEXP_NULL;
