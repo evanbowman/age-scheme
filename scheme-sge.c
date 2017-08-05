@@ -17,6 +17,9 @@
 #define MUST_BE_STRING(__STRING_VAR) \
     if (!sexp_stringp(__STRING_VAR)) TYPE_EXCEPTION(SEXP_STRING, __STRING_VAR);
 
+#define MUST_BE_BOOL(__BOOL_VAR) \
+    if (!sexp_booleanp(__BOOL_VAR)) TYPE_EXCEPTION(SEXP_BOOLEAN, __BOOL_VAR);
+
 #define COMMON_ARGS \
     sexp ctx, sexp self, sexp_sint_t n
 
@@ -43,6 +46,18 @@ static sexp sexp_GetWindowSize(COMMON_ARGS) {
     return sexp_cons(ctx,
                      sexp_make_unsigned_integer(ctx, size.x),
                      sexp_make_unsigned_integer(ctx, size.y));
+}
+
+static sexp sexp_ChangeWindow(COMMON_ARGS, sexp arg0, sexp arg1, sexp arg2) {
+    MUST_BE_PAIR(arg0);
+    MUST_BE_EXACT(sexp_car(arg0));
+    MUST_BE_EXACT(sexp_cdr(arg0));
+    MUST_BE_STRING(arg1);
+    MUST_BE_BOOL(arg2);
+    SGE_UIVec2 size = { sexp_uint_value(sexp_car(arg0)),
+                        sexp_uint_value(sexp_cdr(arg0)) };
+    TRY(SGE_ChangeWindow(&size, sexp_string_data(arg1), sexp_unbox_boolean(arg2)));
+    return SEXP_NULL;
 }
 
 static sexp sexp_EntityCreate(COMMON_ARGS) {
@@ -238,6 +253,11 @@ static sexp sexp_AnimationCreate(COMMON_ARGS, sexp arg0, sexp arg1, sexp arg2, s
     return sexp_make_unsigned_integer(ctx, animation);
 }
 
+static sexp sexp_CollisionTest(COMMON_ARGS) {
+    TRY(SGE_CollisionTest());
+    return SEXP_NULL;
+}
+
 static sexp sexp_PollEvent(COMMON_ARGS) {
     SGE_EventHolder holder;
     if (SGE_PollEvents(&holder)) {
@@ -262,7 +282,14 @@ static sexp sexp_PollEvent(COMMON_ARGS) {
         }
 
         case SGE_EventCode_Collision: {
-            exit(1);
+            sexp result = sexp_make_vector(ctx, SEXP_THREE, SEXP_NULL);
+            sexp_vector_set(result, SEXP_ZERO,
+                            sexp_make_integer(ctx, holder.code));
+            sexp_vector_set(result, SEXP_ONE,
+                            sexp_make_unsigned_integer(ctx, holder.event.collision.first));
+            sexp_vector_set(result, SEXP_ONE,
+                            sexp_make_unsigned_integer(ctx, holder.event.collision.second));
+            return result;
         };
         }
     }
@@ -280,150 +307,153 @@ static sexp sexp_ResourcePath(COMMON_ARGS) {
 }
 
 void sexp_SGE_LibraryExport(sexp ctx, sexp env) {
-#define FFI_EXPORTP(__STR_NAME_, __ARGC_, __C_NAME_) \
+#define C_EXPORTP(__STR_NAME_, __ARGC_, __C_NAME_) \
     sexp_define_foreign(ctx, env, __STR_NAME_, __ARGC_, (sexp_proc1)__C_NAME_)
-#define FFI_EXPORTI(__STR_NAME_, __VALUE_) \
+#define C_EXPORTI(__STR_NAME_, __VALUE_) \
     sexp_env_define(ctx, env, sexp_intern(ctx, __STR_NAME_, sizeof(__STR_NAME_) - 1), sexp_make_integer(ctx, __VALUE_))
-    FFI_EXPORTP("sge-is-running?", 0, sexp_IsRunning);
-    FFI_EXPORTP("sge-set-refresh-rgba", 1, sexp_SetRefreshColor);
-    FFI_EXPORTP("sge-window-size", 0, sexp_GetWindowSize);
-    FFI_EXPORTP("sge-entity-create", 0, sexp_EntityCreate);
-    FFI_EXPORTP("sge-entity-clone", 1, sexp_EntityClone);
-    FFI_EXPORTP("sge-entity-add-attrib", 2, sexp_EntityAddAttrib);
-    FFI_EXPORTP("sge-entity-set-animation", 2, sexp_EntitySetAnimation);
-    FFI_EXPORTP("sge-entity-set-keyframe", 2, sexp_EntitySetKeyframe);
-    FFI_EXPORTP("sge-entity-set-position", 2, sexp_EntitySetPosition);
-    FFI_EXPORTP("sge-entity-set-scale", 2, sexp_EntitySetScale);
-    FFI_EXPORTP("sge-entity-set-blend-mode", 2, sexp_EntitySetBlendMode);
-    FFI_EXPORTP("sge-entity-set-zorder", 2, sexp_EntitySetZOrder);
-    FFI_EXPORTP("sge-entity-set-rgba", 2, sexp_EntitySetColor);
-    FFI_EXPORTP("sge-entity-get-position", 1, sexp_EntityGetPosition);
-    FFI_EXPORTP("sge-entity-get-keyframe", 1, sexp_EntityGetKeyframe);
-    FFI_EXPORTP("sge-entity-remove", 1, sexp_EntityRemove);
-    FFI_EXPORTP("sge-entity-remove-attrib", 2, sexp_EntityRemoveAttrib);
-    FFI_EXPORTP("sge-camera-set-target", 1, sexp_CameraSetTarget);
-    FFI_EXPORTP("sge-camera-set-center", 1, sexp_CameraSetCenter);
-    FFI_EXPORTP("sge-camera-set-springiness", 1, sexp_CameraSetSpringiness);
-    FFI_EXPORTP("sge-camera-set-zoom", 1, sexp_CameraSetZoom);
-    FFI_EXPORTP("sge-camera-get-viewsize", 0, sexp_CameraGetViewSize);
-    FFI_EXPORTP("sge-timer-create", 0, sexp_TimerCreate);
-    FFI_EXPORTP("sge-timer-reset", 1, sexp_TimerReset);
-    FFI_EXPORTP("sge-timer-remove", 1, sexp_TimerRemove);
-    FFI_EXPORTP("sge-animation-create", 4, sexp_AnimationCreate);
-    FFI_EXPORTP("sge-poll-event", 0, sexp_PollEvent);
-    FFI_EXPORTP("sge-microsleep", 1, sexp_Microsleep);
-    FFI_EXPORTP("sge-resource-path", 0, sexp_ResourcePath);
-    FFI_EXPORTI("sge-key-a", SGE_KeyA);
-    FFI_EXPORTI("sge-key-b", SGE_KeyB);
-    FFI_EXPORTI("sge-key-c", SGE_KeyC);
-    FFI_EXPORTI("sge-key-d", SGE_KeyD);
-    FFI_EXPORTI("sge-key-e", SGE_KeyE);
-    FFI_EXPORTI("sge-key-f", SGE_KeyF);
-    FFI_EXPORTI("sge-key-g", SGE_KeyG);
-    FFI_EXPORTI("sge-key-h", SGE_KeyH);
-    FFI_EXPORTI("sge-key-i", SGE_KeyI);
-    FFI_EXPORTI("sge-key-j", SGE_KeyJ);
-    FFI_EXPORTI("sge-key-k", SGE_KeyK);
-    FFI_EXPORTI("sge-key-l", SGE_KeyL);
-    FFI_EXPORTI("sge-key-m", SGE_KeyM);
-    FFI_EXPORTI("sge-key-n", SGE_KeyN);
-    FFI_EXPORTI("sge-key-o", SGE_KeyO);
-    FFI_EXPORTI("sge-key-p", SGE_KeyP);
-    FFI_EXPORTI("sge-key-q", SGE_KeyQ);
-    FFI_EXPORTI("sge-key-r", SGE_KeyR);
-    FFI_EXPORTI("sge-key-s", SGE_KeyS);
-    FFI_EXPORTI("sge-key-t", SGE_KeyT);
-    FFI_EXPORTI("sge-key-u", SGE_KeyU);
-    FFI_EXPORTI("sge-key-v", SGE_KeyV);
-    FFI_EXPORTI("sge-key-w", SGE_KeyW);
-    FFI_EXPORTI("sge-key-x", SGE_KeyX);
-    FFI_EXPORTI("sge-key-y", SGE_KeyY);
-    FFI_EXPORTI("sge-key-z", SGE_KeyZ);
-    FFI_EXPORTI("sge-key-0", SGE_KeyNum0);
-    FFI_EXPORTI("sge-key-1", SGE_KeyNum1);
-    FFI_EXPORTI("sge-key-2", SGE_KeyNum2);
-    FFI_EXPORTI("sge-key-3", SGE_KeyNum3);
-    FFI_EXPORTI("sge-key-4", SGE_KeyNum4);
-    FFI_EXPORTI("sge-key-5", SGE_KeyNum5);
-    FFI_EXPORTI("sge-key-6", SGE_KeyNum6);
-    FFI_EXPORTI("sge-key-7", SGE_KeyNum7);
-    FFI_EXPORTI("sge-key-8", SGE_KeyNum8);
-    FFI_EXPORTI("sge-key-9", SGE_KeyNum9);
-    FFI_EXPORTI("sge-key-esc", SGE_KeyEscape);
-    FFI_EXPORTI("sge-key-lctrl", SGE_KeyLControl);
-    FFI_EXPORTI("sge-key-lshift", SGE_KeyLShift);
-    FFI_EXPORTI("sge-key-lalt", SGE_KeyLAlt);
-    FFI_EXPORTI("sge-key-lsystem", SGE_KeyLSystem);
-    FFI_EXPORTI("sge-key-rctrl", SGE_KeyRControl);
-    FFI_EXPORTI("sge-key-rshift", SGE_KeyRShift);
-    FFI_EXPORTI("sge-key-ralt", SGE_KeyRAlt);
-    FFI_EXPORTI("sge-key-rsystem", SGE_KeyRSystem);
-    FFI_EXPORTI("sge-key-menu", SGE_KeyMenu);
-    FFI_EXPORTI("sge-key-lbracket", SGE_KeyLBracket);
-    FFI_EXPORTI("sge-key-rbracket", SGE_KeyRBracket);
-    FFI_EXPORTI("sge-key-semicolon", SGE_KeySemiColon);
-    FFI_EXPORTI("sge-key-comma", SGE_KeyComma);
-    FFI_EXPORTI("sge-key-period", SGE_KeyPeriod);
-    FFI_EXPORTI("sge-key-quote", SGE_KeyQuote);
-    FFI_EXPORTI("sge-key-slash", SGE_KeySlash);
-    FFI_EXPORTI("sge-key-backslash", SGE_KeyBackSlash);
-    FFI_EXPORTI("sge-key-tilde", SGE_KeyTilde);
-    FFI_EXPORTI("sge-key-equal", SGE_KeyEqual);
-    FFI_EXPORTI("sge-key-dash", SGE_KeyDash);
-    FFI_EXPORTI("sge-key-space", SGE_KeySpace);
-    FFI_EXPORTI("sge-key-return", SGE_KeyReturn);
-    FFI_EXPORTI("sge-key-backspace", SGE_KeyBackSpace);
-    FFI_EXPORTI("sge-key-tab", SGE_KeyTab);
-    FFI_EXPORTI("sge-key-pageup", SGE_KeyPageUp);
-    FFI_EXPORTI("sge-key-pagedown", SGE_KeyPageDown);
-    FFI_EXPORTI("sge-key-end", SGE_KeyEnd);
-    FFI_EXPORTI("sge-key-home", SGE_KeyHome);
-    FFI_EXPORTI("sge-key-insert", SGE_KeyInsert);
-    FFI_EXPORTI("sge-key-delete", SGE_KeyDelete);
-    FFI_EXPORTI("sge-key-plus", SGE_KeyAdd);
-    FFI_EXPORTI("sge-key-minus", SGE_KeySubtract);
-    FFI_EXPORTI("sge-key-multiply", SGE_KeyMultiply);
-    FFI_EXPORTI("sge-key-divide", SGE_KeyDivide);
-    FFI_EXPORTI("sge-key-left", SGE_KeyLeft);
-    FFI_EXPORTI("sge-key-right", SGE_KeyRight);
-    FFI_EXPORTI("sge-key-up", SGE_KeyUp);
-    FFI_EXPORTI("sge-key-down", SGE_KeyDown);
-    FFI_EXPORTI("sge-key-num0", SGE_KeyNumpad0);
-    FFI_EXPORTI("sge-key-num1", SGE_KeyNumpad1);
-    FFI_EXPORTI("sge-key-num2", SGE_KeyNumpad2);
-    FFI_EXPORTI("sge-key-num3", SGE_KeyNumpad3);
-    FFI_EXPORTI("sge-key-num4", SGE_KeyNumpad4);
-    FFI_EXPORTI("sge-key-num5", SGE_KeyNumpad5);
-    FFI_EXPORTI("sge-key-num6", SGE_KeyNumpad6);
-    FFI_EXPORTI("sge-key-num7", SGE_KeyNumpad7);
-    FFI_EXPORTI("sge-key-num8", SGE_KeyNumpad8);
-    FFI_EXPORTI("sge-key-num9", SGE_KeyNumpad9);
-    FFI_EXPORTI("sge-key-f1", SGE_KeyF1);
-    FFI_EXPORTI("sge-key-f2", SGE_KeyF2);
-    FFI_EXPORTI("sge-key-f3", SGE_KeyF3);
-    FFI_EXPORTI("sge-key-f4", SGE_KeyF4);
-    FFI_EXPORTI("sge-key-f5", SGE_KeyF5);
-    FFI_EXPORTI("sge-key-f6", SGE_KeyF6);
-    FFI_EXPORTI("sge-key-f7", SGE_KeyF7);
-    FFI_EXPORTI("sge-key-f8", SGE_KeyF8);
-    FFI_EXPORTI("sge-key-f9", SGE_KeyF9);
-    FFI_EXPORTI("sge-key-f10", SGE_KeyF10);
-    FFI_EXPORTI("sge-key-f11", SGE_KeyF11);
-    FFI_EXPORTI("sge-key-f12", SGE_KeyF12);
-    FFI_EXPORTI("sge-key-f13", SGE_KeyF13);
-    FFI_EXPORTI("sge-key-f14", SGE_KeyF14);
-    FFI_EXPORTI("sge-key-f15", SGE_KeyF15);
-    FFI_EXPORTI("sge-key-pause", SGE_KeyPause);
-    FFI_EXPORTI("sge-key-count", SGE_KeyCount);
-    FFI_EXPORTI("sge-event-text-entered", SGE_EventCode_TextEntered);
-    FFI_EXPORTI("sge-event-key-pressed", SGE_EventCode_KeyPressed);
-    FFI_EXPORTI("sge-event-key-released", SGE_EventCode_KeyReleased);
-    FFI_EXPORTI("sge-blend-add", SGE_BM_Add);
-    FFI_EXPORTI("sge-blend-multiply", SGE_BM_Multiply);
-    FFI_EXPORTI("sge-blend-alpha", SGE_BM_Alpha);
-    FFI_EXPORTI("sge-blend-none", SGE_BM_None);
-    FFI_EXPORTI("sge-attrib-hidden", SGE_Attr_Hidden);
-    FFI_EXPORTI("sge-attrib-position-absolute", SGE_Attr_PositionAbsolute);
+    C_EXPORTP("sge-is-running?", 0, sexp_IsRunning);
+    C_EXPORTP("sge-set-refresh-rgba", 1, sexp_SetRefreshColor);
+    C_EXPORTP("sge-window-size", 0, sexp_GetWindowSize);
+    C_EXPORTP("sge-change-window", 3, sexp_ChangeWindow);
+    C_EXPORTP("sge-entity-create", 0, sexp_EntityCreate);
+    C_EXPORTP("sge-entity-clone", 1, sexp_EntityClone);
+    C_EXPORTP("sge-entity-add-attrib", 2, sexp_EntityAddAttrib);
+    C_EXPORTP("sge-entity-set-animation", 2, sexp_EntitySetAnimation);
+    C_EXPORTP("sge-entity-set-keyframe", 2, sexp_EntitySetKeyframe);
+    C_EXPORTP("sge-entity-set-position", 2, sexp_EntitySetPosition);
+    C_EXPORTP("sge-entity-set-scale", 2, sexp_EntitySetScale);
+    C_EXPORTP("sge-entity-set-blend-mode", 2, sexp_EntitySetBlendMode);
+    C_EXPORTP("sge-entity-set-zorder", 2, sexp_EntitySetZOrder);
+    C_EXPORTP("sge-entity-set-rgba", 2, sexp_EntitySetColor);
+    C_EXPORTP("sge-entity-get-position", 1, sexp_EntityGetPosition);
+    C_EXPORTP("sge-entity-get-keyframe", 1, sexp_EntityGetKeyframe);
+    C_EXPORTP("sge-entity-remove", 1, sexp_EntityRemove);
+    C_EXPORTP("sge-entity-remove-attrib", 2, sexp_EntityRemoveAttrib);
+    C_EXPORTP("sge-camera-set-target", 1, sexp_CameraSetTarget);
+    C_EXPORTP("sge-camera-set-center", 1, sexp_CameraSetCenter);
+    C_EXPORTP("sge-camera-set-springiness", 1, sexp_CameraSetSpringiness);
+    C_EXPORTP("sge-camera-set-zoom", 1, sexp_CameraSetZoom);
+    C_EXPORTP("sge-camera-get-viewsize", 0, sexp_CameraGetViewSize);
+    C_EXPORTP("sge-timer-create", 0, sexp_TimerCreate);
+    C_EXPORTP("sge-timer-reset", 1, sexp_TimerReset);
+    C_EXPORTP("sge-timer-remove", 1, sexp_TimerRemove);
+    C_EXPORTP("sge-animation-create", 4, sexp_AnimationCreate);
+    C_EXPORTP("sge-collision-test", 0, sexp_CollisionTest);
+    C_EXPORTP("sge-poll-event", 0, sexp_PollEvent);
+    C_EXPORTP("sge-microsleep", 1, sexp_Microsleep);
+    C_EXPORTP("sge-resource-path", 0, sexp_ResourcePath);
+    C_EXPORTI("sge-key-a", SGE_KeyA);
+    C_EXPORTI("sge-key-b", SGE_KeyB);
+    C_EXPORTI("sge-key-c", SGE_KeyC);
+    C_EXPORTI("sge-key-d", SGE_KeyD);
+    C_EXPORTI("sge-key-e", SGE_KeyE);
+    C_EXPORTI("sge-key-f", SGE_KeyF);
+    C_EXPORTI("sge-key-g", SGE_KeyG);
+    C_EXPORTI("sge-key-h", SGE_KeyH);
+    C_EXPORTI("sge-key-i", SGE_KeyI);
+    C_EXPORTI("sge-key-j", SGE_KeyJ);
+    C_EXPORTI("sge-key-k", SGE_KeyK);
+    C_EXPORTI("sge-key-l", SGE_KeyL);
+    C_EXPORTI("sge-key-m", SGE_KeyM);
+    C_EXPORTI("sge-key-n", SGE_KeyN);
+    C_EXPORTI("sge-key-o", SGE_KeyO);
+    C_EXPORTI("sge-key-p", SGE_KeyP);
+    C_EXPORTI("sge-key-q", SGE_KeyQ);
+    C_EXPORTI("sge-key-r", SGE_KeyR);
+    C_EXPORTI("sge-key-s", SGE_KeyS);
+    C_EXPORTI("sge-key-t", SGE_KeyT);
+    C_EXPORTI("sge-key-u", SGE_KeyU);
+    C_EXPORTI("sge-key-v", SGE_KeyV);
+    C_EXPORTI("sge-key-w", SGE_KeyW);
+    C_EXPORTI("sge-key-x", SGE_KeyX);
+    C_EXPORTI("sge-key-y", SGE_KeyY);
+    C_EXPORTI("sge-key-z", SGE_KeyZ);
+    C_EXPORTI("sge-key-0", SGE_KeyNum0);
+    C_EXPORTI("sge-key-1", SGE_KeyNum1);
+    C_EXPORTI("sge-key-2", SGE_KeyNum2);
+    C_EXPORTI("sge-key-3", SGE_KeyNum3);
+    C_EXPORTI("sge-key-4", SGE_KeyNum4);
+    C_EXPORTI("sge-key-5", SGE_KeyNum5);
+    C_EXPORTI("sge-key-6", SGE_KeyNum6);
+    C_EXPORTI("sge-key-7", SGE_KeyNum7);
+    C_EXPORTI("sge-key-8", SGE_KeyNum8);
+    C_EXPORTI("sge-key-9", SGE_KeyNum9);
+    C_EXPORTI("sge-key-esc", SGE_KeyEscape);
+    C_EXPORTI("sge-key-lctrl", SGE_KeyLControl);
+    C_EXPORTI("sge-key-lshift", SGE_KeyLShift);
+    C_EXPORTI("sge-key-lalt", SGE_KeyLAlt);
+    C_EXPORTI("sge-key-lsystem", SGE_KeyLSystem);
+    C_EXPORTI("sge-key-rctrl", SGE_KeyRControl);
+    C_EXPORTI("sge-key-rshift", SGE_KeyRShift);
+    C_EXPORTI("sge-key-ralt", SGE_KeyRAlt);
+    C_EXPORTI("sge-key-rsystem", SGE_KeyRSystem);
+    C_EXPORTI("sge-key-menu", SGE_KeyMenu);
+    C_EXPORTI("sge-key-lbracket", SGE_KeyLBracket);
+    C_EXPORTI("sge-key-rbracket", SGE_KeyRBracket);
+    C_EXPORTI("sge-key-semicolon", SGE_KeySemiColon);
+    C_EXPORTI("sge-key-comma", SGE_KeyComma);
+    C_EXPORTI("sge-key-period", SGE_KeyPeriod);
+    C_EXPORTI("sge-key-quote", SGE_KeyQuote);
+    C_EXPORTI("sge-key-slash", SGE_KeySlash);
+    C_EXPORTI("sge-key-backslash", SGE_KeyBackSlash);
+    C_EXPORTI("sge-key-tilde", SGE_KeyTilde);
+    C_EXPORTI("sge-key-equal", SGE_KeyEqual);
+    C_EXPORTI("sge-key-dash", SGE_KeyDash);
+    C_EXPORTI("sge-key-space", SGE_KeySpace);
+    C_EXPORTI("sge-key-return", SGE_KeyReturn);
+    C_EXPORTI("sge-key-backspace", SGE_KeyBackSpace);
+    C_EXPORTI("sge-key-tab", SGE_KeyTab);
+    C_EXPORTI("sge-key-pageup", SGE_KeyPageUp);
+    C_EXPORTI("sge-key-pagedown", SGE_KeyPageDown);
+    C_EXPORTI("sge-key-end", SGE_KeyEnd);
+    C_EXPORTI("sge-key-home", SGE_KeyHome);
+    C_EXPORTI("sge-key-insert", SGE_KeyInsert);
+    C_EXPORTI("sge-key-delete", SGE_KeyDelete);
+    C_EXPORTI("sge-key-plus", SGE_KeyAdd);
+    C_EXPORTI("sge-key-minus", SGE_KeySubtract);
+    C_EXPORTI("sge-key-multiply", SGE_KeyMultiply);
+    C_EXPORTI("sge-key-divide", SGE_KeyDivide);
+    C_EXPORTI("sge-key-left", SGE_KeyLeft);
+    C_EXPORTI("sge-key-right", SGE_KeyRight);
+    C_EXPORTI("sge-key-up", SGE_KeyUp);
+    C_EXPORTI("sge-key-down", SGE_KeyDown);
+    C_EXPORTI("sge-key-num0", SGE_KeyNumpad0);
+    C_EXPORTI("sge-key-num1", SGE_KeyNumpad1);
+    C_EXPORTI("sge-key-num2", SGE_KeyNumpad2);
+    C_EXPORTI("sge-key-num3", SGE_KeyNumpad3);
+    C_EXPORTI("sge-key-num4", SGE_KeyNumpad4);
+    C_EXPORTI("sge-key-num5", SGE_KeyNumpad5);
+    C_EXPORTI("sge-key-num6", SGE_KeyNumpad6);
+    C_EXPORTI("sge-key-num7", SGE_KeyNumpad7);
+    C_EXPORTI("sge-key-num8", SGE_KeyNumpad8);
+    C_EXPORTI("sge-key-num9", SGE_KeyNumpad9);
+    C_EXPORTI("sge-key-f1", SGE_KeyF1);
+    C_EXPORTI("sge-key-f2", SGE_KeyF2);
+    C_EXPORTI("sge-key-f3", SGE_KeyF3);
+    C_EXPORTI("sge-key-f4", SGE_KeyF4);
+    C_EXPORTI("sge-key-f5", SGE_KeyF5);
+    C_EXPORTI("sge-key-f6", SGE_KeyF6);
+    C_EXPORTI("sge-key-f7", SGE_KeyF7);
+    C_EXPORTI("sge-key-f8", SGE_KeyF8);
+    C_EXPORTI("sge-key-f9", SGE_KeyF9);
+    C_EXPORTI("sge-key-f10", SGE_KeyF10);
+    C_EXPORTI("sge-key-f11", SGE_KeyF11);
+    C_EXPORTI("sge-key-f12", SGE_KeyF12);
+    C_EXPORTI("sge-key-f13", SGE_KeyF13);
+    C_EXPORTI("sge-key-f14", SGE_KeyF14);
+    C_EXPORTI("sge-key-f15", SGE_KeyF15);
+    C_EXPORTI("sge-key-pause", SGE_KeyPause);
+    C_EXPORTI("sge-key-count", SGE_KeyCount);
+    C_EXPORTI("sge-event-text-entered", SGE_EventCode_TextEntered);
+    C_EXPORTI("sge-event-key-pressed", SGE_EventCode_KeyPressed);
+    C_EXPORTI("sge-event-key-released", SGE_EventCode_KeyReleased);
+    C_EXPORTI("sge-event-collision", SGE_EventCode_Collision);
+    C_EXPORTI("sge-blend-add", SGE_BM_Add);
+    C_EXPORTI("sge-blend-multiply", SGE_BM_Multiply);
+    C_EXPORTI("sge-blend-alpha", SGE_BM_Alpha);
+    C_EXPORTI("sge-blend-none", SGE_BM_None);
+    C_EXPORTI("sge-attrib-hidden", SGE_Attr_Hidden);
+    C_EXPORTI("sge-attrib-position-absolute", SGE_Attr_PositionAbsolute);
 }
 
 void schemeEntry() {
@@ -465,11 +495,20 @@ void schemeEntry() {
     SGE_Exit();
 }
 
+#if defined(__APPLE__) || defined(__linux__)
+#include <unistd.h>
+#endif
+
 int main(int argc, char** argv) {
     if (argc == 2) {
         SGE_ConfigureResourcePath(argv[1]);
-    } else if (argc != 1) {
+    } else if (argc == 1) {
+#if defined(__APPLE__) || defined(__linux__)
+        char cwd[1024];
+        SGE_ConfigureResourcePath();
+#else
         puts("usage: scheme-sge <path-to-package>");
+#endif
     }
     SGE_Main(schemeEntry);
     return 0;
