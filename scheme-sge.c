@@ -495,20 +495,11 @@ void schemeEntry() {
     SGE_Exit();
 }
 
-#if defined(__APPLE__) || defined(__linux__)
-#include <unistd.h>
-#endif
-
 int main(int argc, char** argv) {
     if (argc == 2) {
         SGE_ConfigureResourcePath(argv[1]);
     } else if (argc == 1) {
-#if defined(__APPLE__) || defined(__linux__)
-        char cwd[1024];
-        SGE_ConfigureResourcePath();
-#else
         puts("usage: scheme-sge <path-to-package>");
-#endif
     }
     SGE_Main(schemeEntry);
     return 0;
