@@ -61,14 +61,14 @@ static sexp sexp_ChangeWindow(COMMON_ARGS, sexp arg0, sexp arg1, sexp arg2) {
 }
 
 static sexp sexp_EntityCreate(COMMON_ARGS) {
-    SGE_UUID entity;
+    SGE_GUID entity;
     SGE_EntityCreate(&entity);
     return sexp_make_unsigned_integer(ctx, entity);
 }
 
 static sexp sexp_EntityClone(COMMON_ARGS, sexp arg0) {
     MUST_BE_EXACT(arg0);
-    SGE_UUID clone;
+    SGE_GUID clone;
     TRY(SGE_EntityClone(sexp_uint_value(arg0), &clone));
     return sexp_make_unsigned_integer(ctx, clone);
 }
@@ -102,7 +102,7 @@ static sexp sexp_EntitySetPosition(COMMON_ARGS, sexp arg0, sexp arg1) {
     MUST_BE_FLOAT(first);
     MUST_BE_FLOAT(second);
     SGE_Vec2 position = { sexp_flonum_value(first), sexp_flonum_value(second) };
-    const SGE_UUID entity = sexp_uint_value(arg0);
+    const SGE_GUID entity = sexp_uint_value(arg0);
     TRY(SGE_EntitySetPosition(entity, &position));
     return arg0;
 }
@@ -211,7 +211,7 @@ static sexp sexp_CameraGetViewSize(COMMON_ARGS) {
 }
 
 static sexp sexp_TimerCreate(COMMON_ARGS) {
-    SGE_UUID timer;
+    SGE_GUID timer;
     TRY(SGE_TimerCreate(&timer));
     return sexp_make_unsigned_integer(ctx, timer);
 }
@@ -234,7 +234,7 @@ static sexp sexp_AnimationCreate(COMMON_ARGS, sexp arg0, sexp arg1, sexp arg2, s
     MUST_BE_PAIR(arg1);
     MUST_BE_PAIR(arg2);
     MUST_BE_PAIR(arg3);
-    SGE_UUID animation;
+    SGE_GUID animation;
     SGE_IVec2 start = {
         sexp_uint_value(sexp_car(arg1)),
         sexp_uint_value(sexp_cdr(arg1))
